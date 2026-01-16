@@ -83,14 +83,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setError(signUpError.message);
             }
           } else {
-            // Account created, now send OTP for email verification
-            const { error: otpError } = await signUpWithOtp(email);
-            if (otpError) {
-              setError(otpError.message);
-            } else {
-              setSuccess('Verification code sent to your email!');
-              setStep('otp-verify');
-            }
+            // Account created
+            setSuccess('Verification code sent to your email!');
+            setStep('otp-verify');
           }
         } else if (step === 'otp-verify') {
           // Step 2: Verify OTP to confirm email
@@ -265,12 +260,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                     {/* Header */}
                     <div className="text-center mb-8">
-                      <h2 className="text-2xl font-semibold text-white mb-2">
+                      <Dialog.Title className="text-2xl font-semibold text-white mb-2">
                         {renderTitle()}
-                      </h2>
-                      <p className="text-white/50 text-sm">
+                      </Dialog.Title>
+                      <Dialog.Description className="text-white/50 text-sm">
                         {renderSubtitle()}
-                      </p>
+                      </Dialog.Description>
                     </div>
 
                     {/* Form */}

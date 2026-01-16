@@ -112,12 +112,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         >
                           {/* Header */}
                           <div className="text-center mb-8">
-                            <h2 className="text-2xl font-semibold text-white mb-2">
+                            <Dialog.Title className="text-2xl font-semibold text-white mb-2">
                               Welcome to TimeMachine
-                            </h2>
-                            <p className="text-white/50 text-sm">
+                            </Dialog.Title>
+                            <Dialog.Description className="text-white/50 text-sm">
                               Let's personalize your experience
-                            </p>
+                            </Dialog.Description>
                           </div>
 
                           {/* Nickname Input */}
@@ -185,12 +185,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         >
                           {/* Header */}
                           <div className="text-center mb-6">
-                            <h2 className="text-2xl font-semibold text-white mb-2">
+                            <Dialog.Title className="text-2xl font-semibold text-white mb-2">
                               Nice to meet you, {nickname}!
-                            </h2>
-                            <p className="text-white/50 text-sm">
+                            </Dialog.Title>
+                            <Dialog.Description className="text-white/50 text-sm">
                               Tell TimeMachine a bit about yourself (optional)
-                            </p>
+                            </Dialog.Description>
                           </div>
 
                           {/* About Me Input */}
