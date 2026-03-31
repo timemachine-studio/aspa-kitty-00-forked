@@ -164,6 +164,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     isLoading,
     currentPersona,
     isProMaxMode,
+    isCanvasOpen,
     canvasContent,
     canvasLanguage,
     canvasFilename,
@@ -185,6 +186,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     handleSendMessage,
     handlePersonaChange: handlePersonaChangeInternal,
     setIsProMaxMode,
+    setIsCanvasOpen,
     setCanvasContent,
     setCanvasLanguage,
     setCanvasFilename,
@@ -242,15 +244,6 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }, [messages]);
 
   const [showGroupChatModal, setShowGroupChatModal] = useState(false);
-  const [isCanvasOpen, setIsCanvasOpen] = useState(false);
-
-  useEffect(() => {
-    if (isProMaxMode) {
-      setIsCanvasOpen(true);
-    } else {
-      setIsCanvasOpen(false);
-    }
-  }, [isProMaxMode]);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     if (!ACCESS_TOKEN_REQUIRED) return false;
     const accessGranted = localStorage.getItem('timeMachine_accessGranted');
@@ -490,9 +483,12 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       className={`min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden transition-all duration-700`}
       style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
     >
-      <main className="relative h-screen flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
-        <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-transparent">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <main 
+        className={`relative h-screen flex flex-col transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCanvasOpen ? 'w-full sm:w-[calc(100%-520px)] lg:w-[45%] xl:w-[50%]' : 'w-full'}`} 
+        style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+      >
+        <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-transparent pointer-events-none">
+          <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto transition-all duration-500" style={{ width: isCanvasOpen ? '100%' : '100%' }}>
             <BrandLogo
               currentPersona={currentPersona}
               onPersonaChange={handlePersonaChange}
@@ -795,7 +791,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           )}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-transparent">
+        <div className={`fixed bottom-0 left-0 p-4 bg-transparent transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCanvasOpen ? 'w-full sm:w-[calc(100%-520px)] lg:w-[45%] xl:w-[50%]' : 'right-0 w-full'}`}>
           <div className="max-w-4xl mx-auto">
             <ChatInput
               onSendMessage={handleSendMessageWithRateLimit}

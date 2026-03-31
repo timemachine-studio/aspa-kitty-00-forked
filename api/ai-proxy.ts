@@ -1099,6 +1099,9 @@ async function getUserRateLimit(userId: string | null, persona: string): Promise
 // Supabase-based rate limiting functions
 async function checkRateLimit(userId: string | null, ip: string, persona: string): Promise<boolean> {
   try {
+    const cost = persona === 'promax' ? 3 : 1;
+    const targetPersona = persona === 'promax' ? 'pro' : persona;
+
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -1106,7 +1109,7 @@ async function checkRateLimit(userId: string | null, ip: string, persona: string
     let query = supabase
       .from('rate_limits')
       .select('*')
-      .eq('persona', persona);
+      .eq('persona', targetPersona);
 
     if (userId) {
       query = query.eq('user_id', userId);
@@ -1122,19 +1125,21 @@ async function checkRateLimit(userId: string | null, ip: string, persona: string
     }
 
     if (!data) {
-      return true; // No record = no usage yet
+      const limit = await getUserRateLimit(userId, targetPersona);
+      return cost <= limit;
     }
 
     // Check if window has expired (24 hours)
     const windowStart = new Date(data.window_start);
     if (windowStart < dayAgo) {
       // Window expired, will be reset on increment
-      return true;
+      const limit = await getUserRateLimit(userId, targetPersona);
+      return cost <= limit;
     }
 
     // Get custom limit for this user (or fall back to default)
-    const limit = await getUserRateLimit(userId, persona);
-    return data.message_count < limit;
+    const limit = await getUserRateLimit(userId, targetPersona);
+    return (data.message_count + cost) <= limit;
   } catch (error) {
     console.error('Rate limit check exception:', error);
     return true; // Allow on error
@@ -1143,6 +1148,9 @@ async function checkRateLimit(userId: string | null, ip: string, persona: string
 
 async function incrementRateLimit(userId: string | null, ip: string, persona: string): Promise<void> {
   try {
+    const cost = persona === 'promax' ? 3 : 1;
+    const targetPersona = persona === 'promax' ? 'pro' : persona;
+
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
@@ -1150,7 +1158,7 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
     let query = supabase
       .from('rate_limits')
       .select('*')
-      .eq('persona', persona);
+      .eq('persona', targetPersona);
 
     if (userId) {
       query = query.eq('user_id', userId);
@@ -1168,7 +1176,7 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
         await supabase
           .from('rate_limits')
           .update({
-            message_count: 1,
+            message_count: cost,
             window_start: now.toISOString(),
             updated_at: now.toISOString()
           })
@@ -1178,7 +1186,7 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
         await supabase
           .from('rate_limits')
           .update({
-            message_count: existing.message_count + 1,
+            message_count: existing.message_count + cost,
             updated_at: now.toISOString()
           })
           .eq('id', existing.id);
@@ -1190,8 +1198,8 @@ async function incrementRateLimit(userId: string | null, ip: string, persona: st
         .insert({
           user_id: userId,
           ip_address: userId ? null : ip,
-          persona,
-          message_count: 1,
+          persona: targetPersona,
+          message_count: cost,
           window_start: now.toISOString()
         });
     }
@@ -2022,8 +2030,8 @@ The memory tags will be processed and removed from the visible response, so writ
           maxTokensToUse,
           reasoningEffortToUse
         );
-      } else if (persona === 'pro') {
-        // Pro persona uses Pollinations API with Kimi model
+      } else if (persona === 'pro' || persona === 'promax') {
+        // Pro/ProMax persona uses Pollinations API with Kimi model
         streamingResponse = await callPollinationsAPIStreaming(
           apiMessages,
           modelToUse,
@@ -2329,8 +2337,8 @@ The memory tags will be processed and removed from the visible response, so writ
           hasToolCalls: !!apiResponse.choices?.[0]?.message?.tool_calls,
           toolCallCount: apiResponse.choices?.[0]?.message?.tool_calls?.length || 0
         }));
-      } else if (persona === 'pro') {
-        // Pro persona uses Pollinations API with Kimi model
+      } else if (persona === 'pro' || persona === 'promax') {
+        // Pro/ProMax persona uses Pollinations API with Kimi model
         apiResponse = await callPollinationsAPI(
           apiMessages,
           modelToUse,

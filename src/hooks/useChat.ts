@@ -99,6 +99,7 @@ export function useChat(
   const [canvasFilename, setCanvasFilename] = useState<string>('index.html');
   const [canvasTitle, setCanvasTitle] = useState<string>('');
   const [canvasStreaming, setCanvasStreaming] = useState(false);
+  const [isCanvasOpen, setIsCanvasOpen] = useState(false);
   const [currentEmotion, setCurrentEmotion] = useState<string>('joy');
   const [error, setError] = useState<string | null>(null);
   const [showAboutUs, setShowAboutUs] = useState(false);
@@ -232,6 +233,7 @@ export function useChat(
       setIsProMaxMode(false);
       setCanvasContent('');
       setCanvasStreaming(false);
+      setIsCanvasOpen(false);
     }
 
     setError(null);
@@ -642,6 +644,9 @@ export function useChat(
                 // Start collecting artifact content
                 insideArtifact = true;
                 artifactBuffer = proMaxBuffer.substring(tagEnd + 1);
+
+                // Open canvas when artifact starts
+                setIsCanvasOpen(true);
 
                 // Update canvas metadata
                 setCanvasFilename(artifactMeta.filename);
@@ -1170,6 +1175,7 @@ export function useChat(
     isLoading,
     currentPersona,
     isProMaxMode,
+    isCanvasOpen,
     canvasContent,
     canvasLanguage,
     canvasFilename,
@@ -1193,6 +1199,7 @@ export function useChat(
     handleSendMessage,
     handlePersonaChange,
     setIsProMaxMode,
+    setIsCanvasOpen,
     setCanvasContent,
     setCanvasLanguage,
     setCanvasFilename,
