@@ -40,7 +40,6 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
     metadata: {
       hasAnimated: message.hasAnimated,
       imageDimensions: message.imageDimensions,
-      pdfFileName: message.pdfFileName || null,
     },
   };
 }
@@ -56,7 +55,6 @@ function dbRowToMessage(row: any): Message {
     audioUrl: row.audio_url,
     thinking: row.reasoning,
     imageDimensions: row.metadata?.imageDimensions,
-    pdfFileName: row.metadata?.pdfFileName || undefined,
   };
 }
 

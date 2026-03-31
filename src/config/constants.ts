@@ -31,6 +31,11 @@ export const AI_PERSONAS = {
     initialMessage: "From future. Let's cure cancer.",
     color: 'cyan'
   },
+  promax: {
+    name: 'TimeMachine PRO MAX',
+    initialMessage: "PRO MAX mode. Let's build something incredible.",
+    color: 'cyan'
+  },
   chatgpt: {
     name: 'ChatGPT',
     initialMessage: "Hello!",
@@ -81,26 +86,4 @@ export const INITIAL_MESSAGE = {
   isAI: true,
 };
 
-// Pro Heat Levels configuration
-export const PRO_HEAT_LEVELS = {
-  1: {
-    name: 'Heat Level 1',
-    description: 'Conservative and careful responses'
-  },
-  2: {
-    name: 'Heat Level 2', 
-    description: 'Balanced and thoughtful approach'
-  },
-  3: {
-    name: 'Heat Level 3',
-    description: 'More direct and confident responses'
-  },
-  4: {
-    name: 'Heat Level 4',
-    description: 'Bold and assertive communication'
-  },
-  5: {
-    name: 'Heat Level 5',
-    description: 'Maximum intensity and directness'
-  }
-} as const;
+

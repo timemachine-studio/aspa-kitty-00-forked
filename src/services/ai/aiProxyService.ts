@@ -40,7 +40,6 @@ export async function generateAIResponseStreaming(
   systemPrompt: string = '', // Not used anymore, kept for compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   audioData?: string,
-  heatLevel?: number,
   inputImageUrls?: string[],
   imageDimensions?: ImageDimensions,
   onChunk?: (chunk: string) => void,
@@ -50,9 +49,10 @@ export async function generateAIResponseStreaming(
   userMemories?: UserMemoryContext,
   specialMode?: string,
   onStatusChange?: (status: 'analyzing_photo' | 'thinking') => void,
-  pdfText?: string,
+  pdfData?: string,
   pdfFileName?: string,
-  pdfDocumentId?: string
+  pdfDocumentId?: string,
+  canvasContext?: string
 ): Promise<void> {
   try {
     // Call the Vercel API route with streaming enabled
@@ -69,16 +69,16 @@ export async function generateAIResponseStreaming(
         persona: currentPersona,
         imageData,
         audioData,
-        heatLevel,
         inputImageUrls,
         imageDimensions,
         stream: true,
         userId,
         userMemories,
         specialMode,
-        pdfText,
+        pdfData,
         pdfFileName,
-        pdfDocumentId
+        pdfDocumentId,
+        canvasContext
       })
     });
 
@@ -178,12 +178,12 @@ export async function generateAIResponseStreaming(
 
   } catch (error) {
     console.error('Error calling AI proxy:', error);
-
+    
     if (error instanceof RateLimitError) {
       if (onError) onError(error);
       return;
     }
-
+    
     const fallbackError = error instanceof Error ? error : new Error('Unknown error occurred');
     if (onError) {
       onError(fallbackError);
@@ -198,15 +198,15 @@ export async function generateAIResponse(
   systemPrompt: string = '', // Not used anymore, kept for compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   audioData?: string,
-  heatLevel?: number,
   inputImageUrls?: string[],
   imageDimensions?: ImageDimensions,
   userId?: string,
   userMemories?: UserMemoryContext,
   specialMode?: string,
-  pdfText?: string,
+  pdfData?: string,
   pdfFileName?: string,
-  pdfDocumentId?: string
+  pdfDocumentId?: string,
+  canvasContext?: string
 ): Promise<AIResponse> {
   try {
     // Call the Vercel API route without streaming
@@ -223,16 +223,16 @@ export async function generateAIResponse(
         persona: currentPersona,
         imageData,
         audioData,
-        heatLevel,
         inputImageUrls,
         imageDimensions,
         stream: false,
         userId,
         userMemories,
         specialMode,
-        pdfText,
+        pdfData,
         pdfFileName,
-        pdfDocumentId
+        pdfDocumentId,
+        canvasContext
       })
     });
 
@@ -253,20 +253,20 @@ export async function generateAIResponse(
 
   } catch (error) {
     console.error('Error calling AI proxy:', error);
-
+    
     if (error instanceof RateLimitError) {
       throw error; // Re-throw rate limit errors to be handled by the UI
     }
-
+    
     if (error instanceof Error) {
       // Return simplified error message for other errors
-      return {
-        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
+      return { 
+        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment." 
       };
     }
-
-    return {
-      content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
+    
+    return { 
+      content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment." 
     };
   }
 }

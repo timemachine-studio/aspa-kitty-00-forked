@@ -1792,7 +1792,7 @@ You are not just capable of great design — you should be THE standard for AI-g
     },
 
     girlie: {
-      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       temperature: 0.8,
       maxTokens: 3000,
       tools: ['imageGeneration', 'webSearch'],
@@ -1905,7 +1905,7 @@ You are a world-class musician and composer with deep knowledge of:
     },
 
     girlie: {
-      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       temperature: 0.95,
       maxTokens: 2000,
       tools: ['youtubeMusic', 'webSearch'],
@@ -2029,7 +2029,7 @@ Your responses will include a <database_context> block containing verified drug 
     },
 
     girlie: {
-      model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       temperature: 0.8,
       maxTokens: 2000,
       tools: ['webSearch'],
