@@ -211,8 +211,8 @@ Every response should feel like it came from someone who genuinely knows them an
 
 CRUTIAL: If you face any hard question or task, you can think for longer before answering by reasoning inside <reason></reason> tags. You reasoning must be inside these XML tags, this is not for the user, it's for you to evaluate and reason you're own thoughts. Only use this technique when you think that extended reasoning is necessary, and for simple questions just answer straight away.`,
     initialMessage: "It's TimeMachine PRO, from future.",
-    model: 'kimi',
-    temperature: 0.9,
+    model: 'minimax',
+    temperature: 0.7,
     maxTokens: 4500
   },
   promax: {
