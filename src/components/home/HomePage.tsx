@@ -67,18 +67,18 @@ interface AppTile {
 }
 
 const bottomCardData: AppTile[] = [
-  { id: 'education',  label: 'Education',  description: 'Learn anything',    icon: <GraduationCap />, route: '/education'  },
-  { id: 'healthcare', label: 'Healthcare', description: 'Health companion',  icon: <HeartPulse />,    route: '/healthcare' },
-  { id: 'music',      label: 'Music',      description: 'Stream and discover', icon: <Music />,       route: '/music'      },
+  { id: 'education', label: 'Education', description: 'Learn anything', icon: <GraduationCap />, route: '/education' },
+  { id: 'healthcare', label: 'Healthcare', description: 'Health companion', icon: <HeartPulse />, route: '/healthcare' },
+  { id: 'music', label: 'Music', description: 'Stream and discover', icon: <Music />, route: '/music' },
 ];
 
 // sidebar icons
 const sidebarItems = [
-  { icon: <Home />,           label: 'Home',     route: '/home'     },
-  { icon: <MessageCircle />,  label: 'Chat',     route: '/'         },
-  { icon: <History />,        label: 'History',   route: '/history'  },
-  { icon: <User />,           label: 'Account',   route: '/account'  },
-  { icon: <Settings />,       label: 'Settings',  route: '/settings' },
+  { icon: <Home />, label: 'Home', route: '/home' },
+  { icon: <MessageCircle />, label: 'Chat', route: '/' },
+  { icon: <History />, label: 'History', route: '/history' },
+  { icon: <User />, label: 'Account', route: '/account' },
+  { icon: <Settings />, label: 'Settings', route: '/settings' },
 ];
 
 // ─── animation ───────────────────────────────────────────────────────
@@ -127,6 +127,8 @@ export function HomePage() {
     imageDimensions?: ImageDimensions,
     replyToData?: ReplyToData,
     specialMode?: string,
+    pdfData?: string,
+    pdfFileName?: string,
   ) => {
     const mentionMatch = message.match(/^@(chatgpt|gemini|claude|grok|girlie|pro)\s/i);
     const targetModel = mentionMatch ? mentionMatch[1].toLowerCase() : currentPersona;
@@ -139,7 +141,7 @@ export function HomePage() {
 
     if (isAnonymous) incrementCount(targetModel);
 
-    await handleSendMessage(message, imageUrl, audioData, imageUrls, imageDimensions, replyToData, specialMode);
+    await handleSendMessage(message, imageUrl, audioData, imageUrls, imageDimensions, replyToData, specialMode, pdfData, pdfFileName);
   }, [currentPersona, isAnonymous, isRateLimited, incrementCount, handleSendMessage]);
 
   // Open in Chat UI — navigates to / and passes the current session so MainChatPage
