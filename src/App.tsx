@@ -43,8 +43,7 @@ import {
   toggleMessageReaction
 } from './services/groupChat/groupChatService';
 import { GroupChat } from './types/groupChat';
-import { ProMaxCanvas } from './components/chat/ProMaxCanvas';
-import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, AI_PERSONAS } from './config/constants';
+import { ACCESS_TOKEN_REQUIRED, MAINTENANCE_MODE, PRO_HEAT_LEVELS, AI_PERSONAS } from './config/constants';
 import { ChatSession, getSupabaseSessions, getLocalSessions } from './services/chat/chatService';
 import { SEOHead } from './components/seo/SEOHead';
 
@@ -163,13 +162,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     isChatMode,
     isLoading,
     currentPersona,
-    isProMaxMode,
-    isCanvasOpen,
-    canvasContent,
-    canvasLanguage,
-    canvasFilename,
-    canvasTitle,
-    canvasStreaming,
+    currentProHeatLevel,
     currentEmotion,
     error,
     showAboutUs,
@@ -185,13 +178,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     // Actions
     handleSendMessage,
     handlePersonaChange: handlePersonaChangeInternal,
-    setIsProMaxMode,
-    setIsCanvasOpen,
-    setCanvasContent,
-    setCanvasLanguage,
-    setCanvasFilename,
-    setCanvasTitle,
-    setCanvasStreaming,
+    setCurrentProHeatLevel,
     startNewChat,
     markMessageAsAnimated,
     dismissAboutUs,
@@ -244,6 +231,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
   }, [messages]);
 
   const [showGroupChatModal, setShowGroupChatModal] = useState(false);
+  const [isHeatLevelExpanded, setIsHeatLevelExpanded] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     if (!ACCESS_TOKEN_REQUIRED) return false;
     const accessGranted = localStorage.getItem('timeMachine_accessGranted');
@@ -343,12 +331,12 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     text: theme.text,
   }), [currentPersona, theme.text, personaBackgroundColors]);
 
-  const proMaxButtonStyles = useMemo(() => ({
-    border: isProMaxMode ? '1px solid rgb(6,182,212)' : '1px solid rgba(255,255,255,0.1)',
-    bg: isProMaxMode ? 'rgba(6,182,212,0.1)' : 'rgba(255,255,255,0.05)',
-    shadow: isProMaxMode ? '0 0 20px rgba(6,182,212,0.4)' : 'none',
-    text: isProMaxMode ? 'rgb(6,182,212)' : theme.text,
-  }), [isProMaxMode, theme.text]);
+  const heatLevelButtonStyles = useMemo(() => ({
+    border: isHeatLevelExpanded ? '1px solid rgb(30,144,255)' : 'none',
+    bg: isHeatLevelExpanded ? 'rgba(30,144,255,0.3)' : 'rgba(30,144,255,0.2)',
+    shadow: isHeatLevelExpanded ? '0 0 20px rgba(30,144,255,0.8)' : 'none',
+    text: isHeatLevelExpanded ? 'rgb(135,206,250)' : theme.text,
+  }), [isHeatLevelExpanded, theme.text]);
 
   const handleAccessGranted = useCallback(() => {
     setShowWelcomeModal(false);
@@ -483,12 +471,9 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
       className={`min-h-screen ${backgroundClass} ${theme.text} relative overflow-hidden transition-all duration-700`}
       style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
     >
-      <main 
-        className={`relative h-screen flex flex-col transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCanvasOpen ? 'w-full sm:w-[calc(100%-520px)] lg:w-[45%] xl:w-[50%]' : 'w-full'}`} 
-        style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
-      >
-        <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-transparent pointer-events-none">
-          <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto transition-all duration-500" style={{ width: isCanvasOpen ? '100%' : '100%' }}>
+      <main className="relative h-screen flex flex-col" style={{ height: 'calc(var(--vh, 1vh) * 100)' }}>
+        <header className="fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-transparent">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
             <BrandLogo
               currentPersona={currentPersona}
               onPersonaChange={handlePersonaChange}
@@ -537,33 +522,73 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsProMaxMode(!isProMaxMode)}
+                    onClick={() => setIsHeatLevelExpanded(!isHeatLevelExpanded)}
                     style={{
-                      background: proMaxButtonStyles.bg,
-                      color: proMaxButtonStyles.text,
-                      border: proMaxButtonStyles.border,
-                      boxShadow: proMaxButtonStyles.shadow,
+                      background: heatLevelButtonStyles.bg,
+                      color: heatLevelButtonStyles.text,
+                      border: heatLevelButtonStyles.border,
+                      boxShadow: heatLevelButtonStyles.shadow,
                       borderRadius: '9999px',
                       backdropFilter: 'blur(10px)',
                       outline: 'none',
                       borderWidth: '0px',
-                      padding: '8px 20px',
+                      padding: '8px 16px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
                       transition: 'all 0.3s ease',
                     }}
-                    aria-label={isProMaxMode ? "Disable PRO MAX" : "Enable PRO MAX"}
+                    aria-label={isHeatLevelExpanded ? "Close Heat Level" : "Open Heat Level"}
                   >
-                    <span style={{ 
-                      fontSize: '14px', 
-                      color: proMaxButtonStyles.text, 
-                      fontWeight: 700,
-                      letterSpacing: '0.5px' 
-                    }}>
-                      PRO MAX
+                    <Star style={{ width: '16px', height: '16px', color: heatLevelButtonStyles.text }} />
+                    <span style={{ fontSize: '14px', color: heatLevelButtonStyles.text }}>
+                      Heat Level {currentProHeatLevel}
                     </span>
                   </motion.button>
+
+                  <AnimatePresence>
+                    {isHeatLevelExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.25, ease: 'easeOut' }}
+                        className="absolute top-full right-0 mt-3 w-72 bg-black/10 backdrop-blur-3xl rounded-3xl z-50 overflow-hidden border border-white/5"
+                        style={{
+                          background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))'
+                        }}
+                      >
+                        {Object.entries(PRO_HEAT_LEVELS).map(([level, config]) => (
+                          <motion.button
+                            key={level}
+                            whileHover={{
+                              scale: 1.03,
+                              background: 'linear-gradient(90deg, rgba(30,144,255,0.2) 0%, transparent 100%)'
+                            }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => {
+                              setCurrentProHeatLevel(parseInt(level));
+                              setIsHeatLevelExpanded(false);
+                            }}
+                            className={`w-full px-4 py-3 text-left transition-all duration-300
+                              ${currentProHeatLevel === parseInt(level) ? 'text-cyan-400' : theme.text}
+                              ${currentProHeatLevel === parseInt(level) ? 'bg-gradient-to-r from-cyan-500/20 to-black/10' : 'bg-transparent'}
+                              flex flex-col gap-1 border-b border-white/5 last:border-b-0`}
+                            style={{
+                              background: currentProHeatLevel === parseInt(level) ?
+                                'linear-gradient(to right, rgba(30,144,255,0.2), rgba(0,0,0,0.1))' :
+                                'transparent'
+                            }}
+                          >
+                            <div className="font-bold text-sm">{config.name}</div>
+                            <div className={`text-xs opacity-70 ${theme.text}`}>
+                              {config.description}
+                            </div>
+                          </motion.button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (currentPersona === 'default' || currentPersona === 'girlie') && (
                 isCollaborative && collaborativeId ? (
@@ -791,7 +816,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           )}
         </div>
 
-        <div className={`fixed bottom-0 left-0 p-4 bg-transparent transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isCanvasOpen ? 'w-full sm:w-[calc(100%-520px)] lg:w-[45%] xl:w-[50%]' : 'right-0 w-full'}`}>
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-transparent">
           <div className="max-w-4xl mx-auto">
             <ChatInput
               onSendMessage={handleSendMessageWithRateLimit}
@@ -837,16 +862,6 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
           chatName={currentChatName || 'Group Chat'}
           persona={currentPersona}
           onGroupChatCreated={handleGroupChatCreated}
-        />
-        <ProMaxCanvas
-          isOpen={isCanvasOpen}
-          onClose={() => setIsCanvasOpen(false)}
-          code={canvasContent}
-          language={canvasLanguage}
-          filename={canvasFilename}
-          title={canvasTitle}
-          isStreaming={canvasStreaming}
-          onCodeChange={setCanvasContent}
         />
       </main>
     </div>

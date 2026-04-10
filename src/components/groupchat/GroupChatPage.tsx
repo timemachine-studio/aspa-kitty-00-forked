@@ -32,7 +32,8 @@ import { Message } from '../../types/chat';
 import { GroupChat, GroupChatMessage, GroupChatParticipant, GroupChatInvite } from '../../types/groupChat';
 import { AI_PERSONAS } from '../../config/constants';
 import ReactMarkdown from 'react-markdown';
-
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 export function GroupChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -867,7 +868,12 @@ function GroupMessage({ message, isOwnMessage, persona, onReply }: GroupMessageP
               {AI_PERSONAS[persona].name}
             </p>
             <div className="text-white/90 prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+              >
+                {message.content}
+              </ReactMarkdown>
             </div>
           </div>
 

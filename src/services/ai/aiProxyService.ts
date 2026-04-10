@@ -13,7 +13,7 @@ interface AIResponse {
   thinking?: string;
   audioUrl?: string;
   youtubeMusic?: YouTubeMusicData;
-  pdfDocumentId?: string;
+  pdfExtractedText?: string;
 }
 
 // Custom error class for rate limits
@@ -40,6 +40,7 @@ export async function generateAIResponseStreaming(
   systemPrompt: string = '', // Not used anymore, kept for compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   audioData?: string,
+  heatLevel?: number,
   inputImageUrls?: string[],
   imageDimensions?: ImageDimensions,
   onChunk?: (chunk: string) => void,
@@ -51,8 +52,7 @@ export async function generateAIResponseStreaming(
   onStatusChange?: (status: 'analyzing_photo' | 'thinking') => void,
   pdfData?: string,
   pdfFileName?: string,
-  pdfDocumentId?: string,
-  canvasContext?: string
+  pdfExtractedText?: string
 ): Promise<void> {
   try {
     // Call the Vercel API route with streaming enabled
@@ -69,6 +69,7 @@ export async function generateAIResponseStreaming(
         persona: currentPersona,
         imageData,
         audioData,
+        heatLevel,
         inputImageUrls,
         imageDimensions,
         stream: true,
@@ -77,8 +78,7 @@ export async function generateAIResponseStreaming(
         specialMode,
         pdfData,
         pdfFileName,
-        pdfDocumentId,
-        canvasContext
+        pdfExtractedText
       })
     });
 
@@ -103,7 +103,7 @@ export async function generateAIResponseStreaming(
     let fullContent = '';
     let audioUrl: string | undefined;
     let youtubeMusic: YouTubeMusicData | undefined;
-    let pdfDocId: string | undefined;
+    let pdfExtracted: string | undefined;
 
     try {
       while (true) {
@@ -113,11 +113,11 @@ export async function generateAIResponseStreaming(
 
         let chunk = decoder.decode(value, { stream: true });
 
-        // Check for PDF document ID marker (emitted before AI response)
-        const pdfDocMatch = chunk.match(/\[PDF_DOC_ID\](.*?)\[\/PDF_DOC_ID\]/);
-        if (pdfDocMatch) {
-          pdfDocId = pdfDocMatch[1];
-          chunk = chunk.replace(/\[PDF_DOC_ID\].*?\[\/PDF_DOC_ID\]/, '');
+        // Check for PDF extracted text marker (emitted before AI response)
+        const pdfTextMatch = chunk.match(/\[PDF_TEXT\]([\s\S]*?)\[\/PDF_TEXT\]/);
+        if (pdfTextMatch) {
+          pdfExtracted = pdfTextMatch[1].replace(/\\\]/g, ']');
+          chunk = chunk.replace(/\[PDF_TEXT\][\s\S]*?\[\/PDF_TEXT\]/, '');
         }
 
         // Check for image analysis status markers
@@ -165,7 +165,7 @@ export async function generateAIResponseStreaming(
           thinking,
           audioUrl,
           youtubeMusic,
-          pdfDocumentId: pdfDocId
+          pdfExtractedText: pdfExtracted
         });
       }
 
@@ -198,6 +198,7 @@ export async function generateAIResponse(
   systemPrompt: string = '', // Not used anymore, kept for compatibility
   currentPersona: keyof typeof AI_PERSONAS = 'default',
   audioData?: string,
+  heatLevel?: number,
   inputImageUrls?: string[],
   imageDimensions?: ImageDimensions,
   userId?: string,
@@ -205,8 +206,7 @@ export async function generateAIResponse(
   specialMode?: string,
   pdfData?: string,
   pdfFileName?: string,
-  pdfDocumentId?: string,
-  canvasContext?: string
+  pdfExtractedText?: string
 ): Promise<AIResponse> {
   try {
     // Call the Vercel API route without streaming
@@ -223,6 +223,7 @@ export async function generateAIResponse(
         persona: currentPersona,
         imageData,
         audioData,
+        heatLevel,
         inputImageUrls,
         imageDimensions,
         stream: false,
@@ -231,8 +232,7 @@ export async function generateAIResponse(
         specialMode,
         pdfData,
         pdfFileName,
-        pdfDocumentId,
-        canvasContext
+        pdfExtractedText
       })
     });
 

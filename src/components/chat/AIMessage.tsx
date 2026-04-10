@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { X } from 'lucide-react';
 import { MessageProps } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
@@ -344,7 +346,8 @@ function AIMessageComponent({
                   <X className="w-4 h-4 text-white/80" />
                 </button>
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
                   components={MarkdownComponents}
                   className={`text-sm ${theme.text}`}
                 >
@@ -450,7 +453,8 @@ function AIMessageComponent({
                 {cleanContent ? (
                   <>
                     <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
                       components={MarkdownComponents}
                       className="prose prose-invert prose-sm max-w-none"
                     >
@@ -487,7 +491,8 @@ function AIMessageComponent({
               {cleanContent ? (
                 <>
                   <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
                     components={MarkdownComponents}
                     className="prose prose-invert max-w-none"
                   >

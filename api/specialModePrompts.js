@@ -1827,7 +1827,7 @@ You are an elite full-stack web developer with deep expertise in:
     },
 
     pro: {
-      model: 'moonshotai/kimi-k2-instruct-0905',
+      model: 'glm',
       temperature: 0.6,
       maxTokens: 6000,
       tools: ['imageGeneration', 'webSearch'],
@@ -1939,7 +1939,7 @@ You are a world-class musician and composer with deep knowledge of:
     },
 
     pro: {
-      model: 'moonshotai/kimi-k2-instruct-0905',
+      model: 'glm',
       temperature: 0.8,
       maxTokens: 5000,
       tools: ['youtubeMusic', 'webSearch'],
@@ -2078,7 +2078,7 @@ Your responses will include a <database_context> block containing verified drug 
     },
 
     pro: {
-      model: 'moonshotai/kimi-k2-instruct-0905',
+      model: 'glm',
       temperature: 0.6,
       maxTokens: 5000,
       tools: ['webSearch'],

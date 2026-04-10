@@ -83,7 +83,7 @@ export function useChat(
   userProfile?: { nickname?: string | null; about_me?: string | null },
   initialPersona?: keyof typeof AI_PERSONAS,
   authLoading?: boolean,
-  initialSession?: { messages: Message[]; id: string } | null
+  initialSession?: { messages: Message[]; id: string; heat_level?: number } | null
 ) {
   // Start with empty state - will be initialized once we know the persona
   // Unless we have an initialSession (loading from history)
@@ -93,13 +93,7 @@ export function useChat(
   const [currentPersona, setCurrentPersona] = useState<keyof typeof AI_PERSONAS>(initialPersona || 'default');
   // If initialSession provided, we're already initialized
   const [isInitialized, setIsInitialized] = useState(!!initialSession);
-  const [isProMaxMode, setIsProMaxMode] = useState(false);
-  const [canvasContent, setCanvasContent] = useState<string>('');
-  const [canvasLanguage, setCanvasLanguage] = useState<string>('html');
-  const [canvasFilename, setCanvasFilename] = useState<string>('index.html');
-  const [canvasTitle, setCanvasTitle] = useState<string>('');
-  const [canvasStreaming, setCanvasStreaming] = useState(false);
-  const [isCanvasOpen, setIsCanvasOpen] = useState(false);
+  const [currentProHeatLevel, setCurrentProHeatLevel] = useState<number>(initialSession?.heat_level || 2);
   const [currentEmotion, setCurrentEmotion] = useState<string>('joy');
   const [error, setError] = useState<string | null>(null);
   const [showAboutUs, setShowAboutUs] = useState(false);
@@ -112,8 +106,8 @@ export function useChat(
   const [loadingPhase, setLoadingPhase] = useState<'analyzing_photo' | 'thinking' | null>(null);
   // Pending remote music - music received from group chat that needs user action to play
   const [pendingRemoteMusic, setPendingRemoteMusic] = useState<YouTubeMusicData | null>(null);
-  // PDF RAG: document ID for the currently active PDF in this session
-  const [activePdfDocumentId, setActivePdfDocumentId] = useState<string | null>(null);
+  // PDF: cached extracted text for follow-up questions in this session
+  const [activePdfText, setActivePdfText] = useState<string | null>(null);
 
   // Collaborative mode state
   const [isCollaborative, setIsCollaborative] = useState(false);
@@ -189,6 +183,7 @@ export function useChat(
           name: sessionName,
           messages: messagesToSave,
           persona,
+          heat_level: persona === 'pro' ? currentProHeatLevel : undefined,
           createdAt: now,
           lastModified: now
         };
@@ -206,7 +201,7 @@ export function useChat(
       // Debounce saves to avoid too many requests
       saveTimeoutRef.current = setTimeout(doSave, 500);
     }
-  }, []);
+  }, [currentProHeatLevel]);
 
   // Handle persona change
   const handlePersonaChange = useCallback((persona: keyof typeof AI_PERSONAS) => {
@@ -228,16 +223,13 @@ export function useChat(
 
     setCurrentPersona(persona);
 
-    // Reset PRO MAX mode when switching away from pro
-    if (persona !== 'pro') {
-      setIsProMaxMode(false);
-      setCanvasContent('');
-      setCanvasStreaming(false);
-      setIsCanvasOpen(false);
+    // Reset heat level to 2 when switching to pro persona
+    if (persona === 'pro') {
+      setCurrentProHeatLevel(2);
     }
 
     setError(null);
-    setActivePdfDocumentId(null); // Clear PDF context on persona switch
+    setActivePdfText(null); // Clear PDF context on persona switch
 
     // Start new chat with new persona
     const newSessionId = generateUUID();
@@ -276,7 +268,7 @@ export function useChat(
     // Start fresh chat with same persona
     const newSessionId = generateUUID();
     setCurrentSessionId(newSessionId);
-    setActivePdfDocumentId(null); // Clear PDF context on new chat
+    setActivePdfText(null); // Clear PDF context on new chat
 
     const initialMessage = cleanContent(AI_PERSONAS[currentPersona].initialMessage);
     setMessages([{
@@ -573,17 +565,6 @@ export function useChat(
     setStreamingMessageId(aiMessageId);
     isStreamingRef.current = true; // Mark streaming as started
 
-    // PRO MAX: buffer to accumulate full response for artifact/edit parsing
-    let proMaxBuffer = '';
-    let insideArtifact = false;
-    let artifactBuffer = '';
-    let artifactMeta = { filename: 'index.html', language: 'html', title: '' };
-
-    // PRO MAX: set canvas to streaming mode when starting
-    if (isProMaxMode) {
-      setCanvasStreaming(true);
-    }
-
     // Filter out initial welcome message (ID: 1) - it's just for UI aesthetics
     let apiMessages = [...messages, apiUserMessage].filter(msg => msg.id !== 1);
 
@@ -598,162 +579,28 @@ export function useChat(
       about_me: userProfile.about_me || undefined
     } : undefined;
 
-    // For PRO MAX mode, use 'promax' as the persona for the API call
-    const apiPersona = (isProMaxMode && messagePersona === 'pro') ? 'promax' as keyof typeof AI_PERSONAS : messagePersona;
-
     if (useStreaming) {
       // Use streaming response - send API messages (without @mention in content and without initial message)
       generateAIResponseStreaming(
         apiMessages,
         imageData,
         '', // System prompt is now handled server-side
-        apiPersona,
+        messagePersona,
         audioData,
+        messagePersona === 'pro' ? currentProHeatLevel : undefined,
         inputImageUrls,
         imageDimensions,
         // onChunk callback
         (chunk: string) => {
-          if (isProMaxMode) {
-            // PRO MAX: parse chunks for <artifact> tags
-            proMaxBuffer += chunk;
-
-            // Check if we're entering an artifact tag
-            if (!insideArtifact && proMaxBuffer.includes('<artifact')) {
-              const artifactStart = proMaxBuffer.indexOf('<artifact');
-              const tagEnd = proMaxBuffer.indexOf('>', artifactStart);
-
-              if (tagEnd !== -1) {
-                // Extract metadata from opening tag
-                const openingTag = proMaxBuffer.substring(artifactStart, tagEnd + 1);
-                const filenameMatch = openingTag.match(/filename="([^"]+)"/);
-                const languageMatch = openingTag.match(/language="([^"]+)"/);
-                const titleMatch = openingTag.match(/title="([^"]+)"/);
-
-                artifactMeta = {
-                  filename: filenameMatch?.[1] || 'index.html',
-                  language: languageMatch?.[1] || 'html',
-                  title: titleMatch?.[1] || ''
-                };
-
-                // Send pre-artifact text to chat
-                const chatText = proMaxBuffer.substring(0, artifactStart);
-                if (chatText.trim()) {
-                  updateStreamingMessage(aiMessageId, chatText, false);
-                }
-
-                // Start collecting artifact content
-                insideArtifact = true;
-                artifactBuffer = proMaxBuffer.substring(tagEnd + 1);
-
-                // Open canvas when artifact starts
-                setIsCanvasOpen(true);
-
-                // Update canvas metadata
-                setCanvasFilename(artifactMeta.filename);
-                setCanvasLanguage(artifactMeta.language);
-                setCanvasTitle(artifactMeta.title);
-
-                // Check if buffer already contains closing tag
-                const closeIdx = artifactBuffer.indexOf('</artifact>');
-                if (closeIdx !== -1) {
-                  const code = artifactBuffer.substring(0, closeIdx);
-                  setCanvasContent(code);
-                  insideArtifact = false;
-
-                  // Any text after closing tag goes to chat
-                  const afterArtifact = artifactBuffer.substring(closeIdx + '</artifact>'.length);
-                  proMaxBuffer = afterArtifact;
-                  artifactBuffer = '';
-                  if (afterArtifact.trim()) {
-                    updateStreamingMessage(aiMessageId, afterArtifact, true);
-                  }
-                } else {
-                  // Stream artifact content to canvas progressively
-                  setCanvasContent(artifactBuffer);
-                }
-
-                proMaxBuffer = '';
-              }
-            } else if (insideArtifact) {
-              // Accumulate artifact content
-              artifactBuffer += chunk;
-
-              // Check for closing tag
-              const closeIdx = artifactBuffer.indexOf('</artifact>');
-              if (closeIdx !== -1) {
-                const code = artifactBuffer.substring(0, closeIdx);
-                setCanvasContent(code);
-                insideArtifact = false;
-
-                // Any text after closing tag goes to chat
-                const afterArtifact = artifactBuffer.substring(closeIdx + '</artifact>'.length);
-                artifactBuffer = '';
-                proMaxBuffer = afterArtifact;
-                if (afterArtifact.trim()) {
-                  updateStreamingMessage(aiMessageId, afterArtifact, true);
-                }
-              } else {
-                // Progressive canvas update while streaming
-                setCanvasContent(artifactBuffer);
-              }
-            } else {
-              // No artifact tag in sight — regular chat text
-              // But don't send yet if we might be about to hit an artifact tag
-              if (!proMaxBuffer.includes('<a') && !proMaxBuffer.includes('<ar') && !proMaxBuffer.includes('<art')) {
-                updateStreamingMessage(aiMessageId, chunk, true);
-                proMaxBuffer = '';
-              }
-            }
-          } else {
-            // Normal mode: pass chunks directly to chat
-            updateStreamingMessage(aiMessageId, chunk, true);
-          }
+          updateStreamingMessage(aiMessageId, chunk, true);
         },
         // onComplete callback
         (response) => {
           const emotion = extractEmotion(response.content);
-          let cleanedContent = cleanContent(response.content);
+          const cleanedContent = cleanContent(response.content);
 
           if (emotion) {
             setCurrentEmotion(emotion);
-          }
-
-          // PRO MAX: process edits and clean artifact tags from final content
-          if (isProMaxMode) {
-            setCanvasStreaming(false);
-
-            // Process <edit> tags: apply search/replace to canvas content
-            const editRegex = /<edit>\s*<search>\s*([\s\S]*?)\s*<\/search>\s*<replace>\s*([\s\S]*?)\s*<\/replace>\s*<\/edit>/g;
-            let editMatch;
-            let currentCanvas = canvasContent;
-            let hasEdits = false;
-
-            // Collect all edits from the full response
-            const fullResponse = response.content;
-            while ((editMatch = editRegex.exec(fullResponse)) !== null) {
-              hasEdits = true;
-              const searchText = editMatch[1].trim();
-              const replaceText = editMatch[2].trim();
-              if (currentCanvas.includes(searchText)) {
-                currentCanvas = currentCanvas.replace(searchText, replaceText);
-              }
-            }
-
-            if (hasEdits) {
-              setCanvasContent(currentCanvas);
-            }
-
-            // Clean artifact and edit tags from chat content
-            cleanedContent = cleanedContent
-              .replace(/<artifact[^>]*>[\s\S]*?<\/artifact>/g, '')
-              .replace(/<edit>[\s\S]*?<\/edit>/g, '')
-              .replace(/<artifact[^>]*>[\s\S]*/g, '') // partial artifact at end
-              .trim();
-
-            // If no chat text was produced (pure artifact response), add a minimal message
-            if (!cleanedContent) {
-              cleanedContent = '✨ Code created in canvas';
-            }
           }
 
           // Handle YouTube music if present
@@ -761,9 +608,9 @@ export function useChat(
             setYoutubeMusic(response.youtubeMusic);
           }
 
-          // Persist PDF document ID for follow-up messages in this session
-          if (response.pdfDocumentId) {
-            setActivePdfDocumentId(response.pdfDocumentId);
+          // Cache PDF text for follow-up messages in this session
+          if (response.pdfExtractedText) {
+            setActivePdfText(response.pdfExtractedText);
           }
 
           setLoadingPhase(null);
@@ -772,10 +619,6 @@ export function useChat(
         // onError callback
         (error) => {
           console.error('Failed to generate streaming response:', error);
-
-          if (isProMaxMode) {
-            setCanvasStreaming(false);
-          }
 
           // Check if it's a rate limit error
           if (error && typeof error === 'object' && 'type' in error && error.type === 'rateLimit') {
@@ -800,10 +643,8 @@ export function useChat(
         },
         pdfData,
         pdfFileName,
-        // Pass existing PDF document ID for follow-up messages (RAG retrieval)
-        activePdfDocumentId || undefined,
-        // Pass canvas context for PRO MAX mode
-        isProMaxMode ? canvasContent : undefined
+        // Pass cached PDF text for follow-up messages (avoids re-extraction)
+        activePdfText || undefined
       );
     } else {
       // Use non-streaming response (fallback) - send API messages (without @mention in content and without initial message)
@@ -812,8 +653,9 @@ export function useChat(
           apiMessages,
           imageData,
           '', // System prompt is now handled server-side
-          apiPersona,
+          messagePersona,
           audioData,
+          messagePersona === 'pro' ? currentProHeatLevel : undefined,
           inputImageUrls,
           imageDimensions,
           userId || undefined,
@@ -821,8 +663,7 @@ export function useChat(
           specialMode,
           pdfData,
           pdfFileName,
-          activePdfDocumentId || undefined,
-          isProMaxMode ? canvasContent : undefined
+          activePdfText || undefined
         );
 
         const emotion = extractEmotion(aiResponse.content);
@@ -832,9 +673,9 @@ export function useChat(
           setCurrentEmotion(emotion);
         }
 
-        // Persist PDF document ID for follow-up messages
-        if (aiResponse.pdfDocumentId) {
-          setActivePdfDocumentId(aiResponse.pdfDocumentId);
+        // Cache PDF text for follow-up messages
+        if (aiResponse.pdfExtractedText) {
+          setActivePdfText(aiResponse.pdfExtractedText);
         }
 
         setLoadingPhase(null);
@@ -857,7 +698,7 @@ export function useChat(
         isStreamingRef.current = false; // Clear streaming flag on error
       }
     }
-  }, [messages, currentPersona, userId, userProfile, isCollaborative, collaborativeId, isProMaxMode, canvasContent]);
+  }, [messages, currentPersona, currentProHeatLevel, userId, userProfile, isCollaborative, collaborativeId]);
 
   const markMessageAsAnimated = useCallback((messageId: number) => {
     setMessages(prev => prev.map(msg =>
@@ -901,8 +742,12 @@ export function useChat(
     setCurrentSessionId(session.id);
     setPersonaTheme(session.persona);
     setError(null);
-    setActivePdfDocumentId(null); // Clear PDF context when loading a different chat
+    setActivePdfText(null); // Clear PDF context when loading a different chat
 
+    // Set heat level if it's a pro session
+    if (session.heat_level) {
+      setCurrentProHeatLevel(session.heat_level);
+    }
   }, [currentSessionId, messages, currentPersona, saveChatSession, setPersonaTheme]);
 
   // Enable collaborative mode for current session
@@ -1174,13 +1019,7 @@ export function useChat(
     isChatMode,
     isLoading,
     currentPersona,
-    isProMaxMode,
-    isCanvasOpen,
-    canvasContent,
-    canvasLanguage,
-    canvasFilename,
-    canvasTitle,
-    canvasStreaming,
+    currentProHeatLevel,
     currentEmotion,
     error,
     showAboutUs,
@@ -1198,13 +1037,7 @@ export function useChat(
     setChatMode,
     handleSendMessage,
     handlePersonaChange,
-    setIsProMaxMode,
-    setIsCanvasOpen,
-    setCanvasContent,
-    setCanvasLanguage,
-    setCanvasFilename,
-    setCanvasTitle,
-    setCanvasStreaming,
+    setCurrentProHeatLevel,
     startNewChat,
     markMessageAsAnimated,
     dismissAboutUs,
