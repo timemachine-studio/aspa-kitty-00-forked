@@ -579,6 +579,11 @@ export function useChat(
       about_me: userProfile.about_me || undefined
     } : undefined;
 
+    // If this message includes PDF text, cache it for follow-up questions
+    if (pdfData) {
+      setActivePdfText(pdfData);
+    }
+
     if (useStreaming) {
       // Use streaming response - send API messages (without @mention in content and without initial message)
       generateAIResponseStreaming(
@@ -608,10 +613,6 @@ export function useChat(
             setYoutubeMusic(response.youtubeMusic);
           }
 
-          // Cache PDF text for follow-up messages in this session
-          if (response.pdfExtractedText) {
-            setActivePdfText(response.pdfExtractedText);
-          }
 
           setLoadingPhase(null);
           completeStreamingMessage(aiMessageId, cleanedContent, response.thinking, response.audioUrl);
@@ -673,10 +674,6 @@ export function useChat(
           setCurrentEmotion(emotion);
         }
 
-        // Cache PDF text for follow-up messages
-        if (aiResponse.pdfExtractedText) {
-          setActivePdfText(aiResponse.pdfExtractedText);
-        }
 
         setLoadingPhase(null);
         completeStreamingMessage(aiMessageId, cleanedContent, aiResponse.thinking, aiResponse.audioUrl);

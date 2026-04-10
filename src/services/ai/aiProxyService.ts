@@ -13,7 +13,6 @@ interface AIResponse {
   thinking?: string;
   audioUrl?: string;
   youtubeMusic?: YouTubeMusicData;
-  pdfExtractedText?: string;
 }
 
 // Custom error class for rate limits
@@ -103,7 +102,6 @@ export async function generateAIResponseStreaming(
     let fullContent = '';
     let audioUrl: string | undefined;
     let youtubeMusic: YouTubeMusicData | undefined;
-    let pdfExtracted: string | undefined;
 
     try {
       while (true) {
@@ -113,12 +111,7 @@ export async function generateAIResponseStreaming(
 
         let chunk = decoder.decode(value, { stream: true });
 
-        // Check for PDF extracted text marker (emitted before AI response)
-        const pdfTextMatch = chunk.match(/\[PDF_TEXT\]([\s\S]*?)\[\/PDF_TEXT\]/);
-        if (pdfTextMatch) {
-          pdfExtracted = pdfTextMatch[1].replace(/\\\]/g, ']');
-          chunk = chunk.replace(/\[PDF_TEXT\][\s\S]*?\[\/PDF_TEXT\]/, '');
-        }
+
 
         // Check for image analysis status markers
         if (chunk.includes('[IMAGE_ANALYZING]')) {
@@ -165,7 +158,6 @@ export async function generateAIResponseStreaming(
           thinking,
           audioUrl,
           youtubeMusic,
-          pdfExtractedText: pdfExtracted
         });
       }
 
@@ -178,12 +170,12 @@ export async function generateAIResponseStreaming(
 
   } catch (error) {
     console.error('Error calling AI proxy:', error);
-    
+
     if (error instanceof RateLimitError) {
       if (onError) onError(error);
       return;
     }
-    
+
     const fallbackError = error instanceof Error ? error : new Error('Unknown error occurred');
     if (onError) {
       onError(fallbackError);
@@ -253,20 +245,20 @@ export async function generateAIResponse(
 
   } catch (error) {
     console.error('Error calling AI proxy:', error);
-    
+
     if (error instanceof RateLimitError) {
       throw error; // Re-throw rate limit errors to be handled by the UI
     }
-    
+
     if (error instanceof Error) {
       // Return simplified error message for other errors
-      return { 
-        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment." 
+      return {
+        content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
       };
     }
-    
-    return { 
-      content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment." 
+
+    return {
+      content: "I apologize, but I'm having trouble connecting right now. Please try again in a moment."
     };
   }
 }

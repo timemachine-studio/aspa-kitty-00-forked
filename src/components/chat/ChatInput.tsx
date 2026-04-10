@@ -7,6 +7,7 @@ import { ChatInputProps, ImageDimensions } from '../../types/chat';
 import { LoadingSpinner } from '../loading/LoadingSpinner';
 import { ImagePreview } from './ImagePreview';
 import { PdfPreview } from './PdfPreview';
+import { extractPdfText } from '../../services/pdf/pdfService';
 import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -63,20 +64,6 @@ const convertImageToBase64 = (file: File): Promise<string> => {
   });
 };
 
-const convertFileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-      } else {
-        reject(new Error('Failed to convert file to base64'));
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
@@ -118,7 +105,8 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [pdfExtractedText, setPdfExtractedText] = useState<string | null>(null);
+  const [isPdfExtracting, setIsPdfExtracting] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [showMentionCall, setShowMentionCall] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -263,7 +251,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
     e.preventDefault();
     // Don't send messages when contour is focused (textbox belongs to the tool)
     if (contour.isFocused) return;
-    if ((message.trim() || selectedImages.length > 0 || selectedPdf) && !isLoading && !isUploading) {
+    if ((message.trim() || selectedImages.length > 0 || selectedPdf) && !isLoading && !isUploading && !isPdfExtracting) {
       // Close mention modal when sending message
       setShowMentionCall(false);
 
@@ -302,13 +290,13 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         } finally {
           setIsUploading(false);
         }
-      } else if (selectedPdf && pdfBase64) {
+      } else if (selectedPdf && pdfExtractedText) {
         setIsUploading(true);
         try {
           const activeMode = selectedPlusOption && selectedPlusOption !== 'upload-photos' && selectedPlusOption !== 'upload-pdf' ? selectedPlusOption : undefined;
-          await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode, pdfBase64, selectedPdf.name);
+          await onSendMessage(message, undefined, undefined, undefined, undefined, undefined, activeMode, pdfExtractedText, selectedPdf.name);
           setSelectedPdf(null);
-          setPdfBase64(null);
+          setPdfExtractedText(null);
           if (pdfInputRef.current) pdfInputRef.current.value = '';
         } catch (error) {
           alert('Failed to process PDF. Please try again.');
@@ -559,23 +547,27 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
       alert('Please select a valid PDF file.');
       return;
     }
-    // 10 MB limit for PDFs (base64 encoding adds ~33% overhead for API transfer)
+    // 10 MB limit for PDFs
     if (file.size > 10 * 1024 * 1024) {
       alert('PDF file size must be under 10 MB.');
       return;
     }
+    setSelectedPdf(file);
+    setIsPdfExtracting(true);
     try {
-      const base64 = await convertFileToBase64(file);
-      setSelectedPdf(file);
-      setPdfBase64(base64);
-    } catch {
-      alert('Failed to read PDF file. Please try again.');
+      const result = await extractPdfText(file);
+      setPdfExtractedText(result.text);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to read PDF file. Please try again.');
+      setSelectedPdf(null);
+    } finally {
+      setIsPdfExtracting(false);
     }
   };
 
   const removePdf = () => {
     setSelectedPdf(null);
-    setPdfBase64(null);
+    setPdfExtractedText(null);
     if (pdfInputRef.current) pdfInputRef.current.value = '';
   };
 
@@ -597,13 +589,17 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
         alert('PDF file size must be under 10 MB.');
         return;
       }
+      setSelectedPdf(pdfFile);
+      setSelectedPlusOption('upload-pdf');
+      setIsPdfExtracting(true);
       try {
-        const base64 = await convertFileToBase64(pdfFile);
-        setSelectedPdf(pdfFile);
-        setPdfBase64(base64);
-        setSelectedPlusOption('upload-pdf');
-      } catch {
-        alert('Failed to read PDF file. Please try again.');
+        const result = await extractPdfText(pdfFile);
+        setPdfExtractedText(result.text);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to read PDF file. Please try again.');
+        setSelectedPdf(null);
+      } finally {
+        setIsPdfExtracting(false);
       }
       return;
     }
@@ -696,7 +692,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
             fileName={selectedPdf.name}
             fileSize={formatFileSize(selectedPdf.size)}
             onRemove={removePdf}
-            isUploading={isUploading}
+            isUploading={isUploading || isPdfExtracting}
           />
         </div>
       )}
@@ -793,7 +789,7 @@ export function ChatInput({ onSendMessage, isLoading, currentPersona = 'default'
                   type="submit"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  disabled={isLoading || isUploading || (!message.trim() && selectedImages.length === 0 && !selectedPdf)}
+                  disabled={isLoading || isUploading || isPdfExtracting || (!message.trim() && selectedImages.length === 0 && !selectedPdf)}
                   className={`p-3 rounded-full ${theme.text} disabled:opacity-50 relative group transition-all duration-300`}
                   style={{
                     background: `linear-gradient(135deg, ${personaStyles.tintColors[currentPersona]}, rgba(255, 255, 255, 0.05))`,

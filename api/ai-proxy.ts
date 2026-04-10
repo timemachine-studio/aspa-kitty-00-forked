@@ -574,60 +574,6 @@ async function fetchHealthcareRAGContext(userMessage: string): Promise<string> {
   }
 }
 
-/**
- * Extract full text from a base64-encoded PDF.
- * Uses the same approach as ChatGPT/Claude: extract everything, inject into context.
- * For very large documents, truncates with a note to keep within context limits.
- */
-async function extractPdfText(base64Data: string): Promise<{ text: string; pageCount: number }> {
-  // Polyfills for pdfjs-dist / pdf-parse in Node environments
-  if (typeof globalThis !== 'undefined') {
-    if (!globalThis.DOMMatrix) {
-      // @ts-ignore
-      globalThis.DOMMatrix = class DOMMatrix {
-        constructor() { return [1, 0, 0, 1, 0, 0]; }
-      };
-    }
-    if (!globalThis.Path2D) {
-      // @ts-ignore
-      globalThis.Path2D = class Path2D { };
-    }
-    if (!globalThis.ImageData) {
-      // @ts-ignore
-      globalThis.ImageData = class ImageData {
-        data = []; width = 0; height = 0;
-      };
-    }
-  }
-
-  // Dynamically import pdf-parse to ensure polyfills are active before it evaluates
-  const pdfParseModule = await import('pdf-parse');
-  const pdfParse: any = 'default' in pdfParseModule ? (pdfParseModule as any).default : pdfParseModule;
-
-  // Strip data URI prefix if present
-  const raw = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
-  const buffer = Buffer.from(raw, 'base64');
-  const data = await pdfParse(buffer);
-
-  let text = (data.text || '').trim();
-  const pageCount = data.numpages || 0;
-
-  if (!text) {
-    throw new Error('No text content could be extracted from the PDF');
-  }
-
-  // Safety truncation for very large documents (~80K chars ≈ ~20K tokens)
-  const MAX_CHARS = 80000;
-  if (text.length > MAX_CHARS) {
-    const keepEnd = Math.floor(MAX_CHARS * 0.15); // Keep 15% from the end
-    const keepStart = MAX_CHARS - keepEnd;
-    text = text.slice(0, keepStart)
-      + '\n\n[... DOCUMENT TRUNCATED — middle portion omitted due to length. The beginning and end of the document are shown. ...]\n\n'
-      + text.slice(-keepEnd);
-  }
-
-  return { text, pageCount };
-}
 
 // Tool Usage Policy - Strict guardrails to prevent over-triggering
 const TOOL_GUARDRAIL = `
@@ -1669,23 +1615,10 @@ ${TOOL_GUARDRAIL}
       }
     }
 
-    // PDF handling: extract text from PDF and inject into context
-    // Two paths: (1) new upload with base64 pdfData, or (2) follow-up with cached pdfExtractedText
-    let pdfTextContent = pdfExtractedText || '';
-    let pdfTextToReturn: string | undefined; // Text to send back to frontend for caching
-
-    if (pdfData && !pdfExtractedText) {
-      // New PDF upload: extract text from base64
-      try {
-        const result = await extractPdfText(pdfData);
-        pdfTextContent = result.text;
-        pdfTextToReturn = result.text; // Send to frontend so it can cache for follow-ups
-        console.log(`[PDF] Extracted ${result.text.length} chars from ${result.pageCount} pages`);
-      } catch (err) {
-        console.error('[PDF] Error extracting text:', err);
-        pdfTextContent = '[ERROR: Failed to extract text from the uploaded PDF. The file may be corrupted, password-protected, or contain only scanned images.]';
-      }
-    }
+    // PDF handling: text extraction is done on the frontend (pdfjs-dist).
+    // pdfData = extracted text from a new PDF upload
+    // pdfExtractedText = cached text from a previous upload in the same session (follow-up)
+    const pdfTextContent = pdfData || pdfExtractedText || '';
 
     // Handle audio transcription if audioData is provided
     let processedMessages = [...messages];
@@ -1809,11 +1742,7 @@ ${TOOL_GUARDRAIL}
 
       let streamingResponse: ReadableStream;
 
-      // Emit the extracted PDF text so the frontend can cache it for follow-up messages
-      if (pdfTextToReturn) {
-        const escapedText = pdfTextToReturn.replace(/\]/g, '\\]');
-        res.write(`[PDF_TEXT]${escapedText}[/PDF_TEXT]`);
-      }
+
 
       // Image handling: use OCR pipeline to extract text from images
       if (hasImageInput && imageUrlsForOCR.length > 0) {
@@ -2298,7 +2227,7 @@ ${TOOL_GUARDRAIL}
         content: result.content,
         thinking: result.thinking,
         audioUrl: audioUrl,
-        ...(pdfTextToReturn ? { pdfExtractedText: pdfTextToReturn } : {})
+
       });
     }
 
