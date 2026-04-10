@@ -5,9 +5,11 @@
 
 // @ts-ignore - pdfjs-dist types may not be perfectly aligned
 import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore - Vite ?url import gives us a bundled URL to the worker file
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Configure PDF.js worker — use CDN to avoid bundler complications
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+// Configure PDF.js worker — use local bundled worker (Vite resolves the ?url import)
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 const MAX_CHARS = 80000; // ~20K tokens — safely within context window limits
 
