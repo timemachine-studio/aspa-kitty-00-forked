@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Loader2, Download, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -307,8 +307,11 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
   const [showLyrics, setShowLyrics] = useState(false);
 
   const [seeds, setSeeds] = useState<number[]>([]);
+  const initialSeedSet = useRef(false);
 
-  // Parse JSON
+  // Parse JSON — only depends on content, NOT seeds.length
+  // This prevents re-creating parsedData (new object ref) when seeds change,
+  // which was causing all existing MusicPlayerVariation components to reset.
   useEffect(() => {
     if (!content) return;
 
@@ -334,14 +337,15 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
 
       if (data.songName && data.style && data.lyrics && data.coverPrompt) {
         setParsedData(data as ParsedMusicData);
-        if (seeds.length === 0) {
+        if (!initialSeedSet.current) {
+          initialSeedSet.current = true;
           setSeeds([Math.floor(Math.random() * 1000000)]);
         }
       }
     } catch (e) {
       console.error('Failed to parse music data', e);
     }
-  }, [content, seeds.length]);
+  }, [content]);
 
   const handleRegenerate = () => {
     setSeeds(prev => [...prev, Math.floor(Math.random() * 1000000)]);
