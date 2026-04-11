@@ -309,6 +309,18 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
   const [seeds, setSeeds] = useState<number[]>([]);
   const initialSeedSet = useRef(false);
 
+  // Deterministic hash from content so the same seed is used on reload
+  // This ensures the same audio/cover is generated from chat history
+  const hashContent = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0; // Convert to 32-bit integer
+    }
+    return Math.abs(hash) % 1000000;
+  };
+
   // Parse JSON — only depends on content, NOT seeds.length
   // This prevents re-creating parsedData (new object ref) when seeds change,
   // which was causing all existing MusicPlayerVariation components to reset.
@@ -339,7 +351,8 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
         setParsedData(data as ParsedMusicData);
         if (!initialSeedSet.current) {
           initialSeedSet.current = true;
-          setSeeds([Math.floor(Math.random() * 1000000)]);
+          // Use deterministic seed based on content hash so reload gives the same result
+          setSeeds([hashContent(content)]);
         }
       }
     } catch (e) {
