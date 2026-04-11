@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Loader2, Download, RefreshCw, CheckCircle2 } from 'lucide-react';
-import { useTheme } from '../../../context/ThemeContext';
-import { AI_PERSONAS } from '../../../config/constants';
-import { useAuth } from '../../../context/AuthContext';
-import { uploadGeneratedMusic } from '../../../services/music/musicService';
+import { useTheme } from '../../context/ThemeContext';
+import { AI_PERSONAS } from '../../config/constants';
+import { useAuth } from '../../context/AuthContext';
+import { uploadGeneratedMusic } from '../../services/music/musicService';
 
 interface MusicComposeCardProps {
   content: string;
