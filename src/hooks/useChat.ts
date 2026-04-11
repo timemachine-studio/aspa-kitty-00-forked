@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, ImageDimensions } from '../types/chat';
+import { Message, ImageDimensions, MusicVariation } from '../types/chat';
 import { generateAIResponse, generateAIResponseStreaming, YouTubeMusicData, UserMemoryContext } from '../services/ai/aiProxyService';
 import { INITIAL_MESSAGE, AI_PERSONAS } from '../config/constants';
 import { chatService, ChatSession } from '../services/chat/chatService';
@@ -999,6 +999,23 @@ export function useChat(
     ));
   }, []);
 
+  // Update music variations (Supabase URLs) on a specific message
+  // Called when MusicComposeCard finishes uploading to Supabase
+  const updateMusicVariations = useCallback((messageId: number, variations: MusicVariation[]) => {
+    setMessages(prev => {
+      const updated = prev.map(msg =>
+        msg.id === messageId ? { ...msg, musicVariations: variations } : msg
+      );
+      // Force immediate save so the Supabase URLs are persisted
+      if (currentSessionId && !isCollaborative) {
+        setTimeout(() => {
+          saveChatSession(currentSessionId, updated, currentPersona, true);
+        }, 0);
+      }
+      return updated;
+    });
+  }, [currentSessionId, currentPersona, saveChatSession, isCollaborative]);
+
   // Cleanup collaborative and music subscriptions on unmount
   useEffect(() => {
     return () => {
@@ -1047,6 +1064,7 @@ export function useChat(
     joinCollaborativeChat,
     leaveCollaborativeMode,
     updateMessageReactions,
+    updateMusicVariations,
     // Remote music
     pendingRemoteMusic,
     playPendingMusic,

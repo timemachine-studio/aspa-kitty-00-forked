@@ -6,6 +6,7 @@ import { UserMessage } from './UserMessage';
 import { Message } from '../../types/chat';
 import { AI_PERSONAS } from '../../config/constants';
 import { BrandOverride } from '../brand/BrandLogo';
+import type { SavedVariation } from './MusicComposeCard';
 
 interface ChatMessageProps extends Message {
   isChatMode: boolean;
@@ -20,6 +21,7 @@ interface ChatMessageProps extends Message {
   onReply?: (message: { id: number; content: string; sender_nickname?: string; isAI: boolean }) => void;
   onReact?: (messageId: number, emoji: string) => void;
   brandOverride?: BrandOverride;
+  onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
 }
 
 // Quick react emoji options
@@ -53,7 +55,9 @@ export function ChatMessage({
   specialMode,
   onReply,
   onReact,
-  brandOverride
+  brandOverride,
+  musicVariations,
+  onMusicVariationsChange
 }: ChatMessageProps) {
   const [showActions, setShowActions] = useState(false);
   const [actionsLocked, setActionsLocked] = useState(false); // For mobile click-to-lock
@@ -257,6 +261,8 @@ export function ChatMessage({
           loadingPhase={streamingMessageId === id ? loadingPhase : undefined}
           specialMode={specialMode}
           brandOverride={brandOverride}
+          musicVariations={musicVariations}
+          onMusicVariationsChange={onMusicVariationsChange}
         />
         {renderReactions()}
         {renderActions()}

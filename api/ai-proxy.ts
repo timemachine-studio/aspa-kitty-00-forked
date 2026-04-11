@@ -1572,7 +1572,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Memory instructions for logged-in users (XML-based approach)
-    const memoryInstructions = userId ? `
+    // Disabled for music-compose — the AI should only output JSON, not memory tags
+    const memoryInstructions = (userId && specialMode !== 'music-compose') ? `
 
 ## Memory
 When the user shares important information about themselves that you should remember for future conversations (like preferences, facts about their life, things they like/dislike, etc.), save it by writing the information inside <memory> tags at the END of your message. Only save genuinely important, lasting information - not temporary things.

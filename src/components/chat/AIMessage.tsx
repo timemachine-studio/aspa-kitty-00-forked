@@ -15,7 +15,7 @@ import { AnimatedShinyText } from '../ui/AnimatedShinyText';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
 import { CodeBlock } from './CodeBlock';
 import { BrandOverride } from '../brand/BrandLogo';
-import { MusicComposeCard } from './MusicComposeCard';
+import { MusicComposeCard, SavedVariation } from './MusicComposeCard';
 
 interface AIMessageProps extends MessageProps {
   isChatMode: boolean;
@@ -29,6 +29,8 @@ interface AIMessageProps extends MessageProps {
   loadingPhase?: 'analyzing_photo' | 'thinking' | null;
   specialMode?: string;
   brandOverride?: BrandOverride;
+  musicVariations?: SavedVariation[];
+  onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
 }
 
 const SPECIAL_MODE_SHIMMER_TEXT: Record<string, string> = {
@@ -110,7 +112,9 @@ function AIMessageComponent({
   isStreamingActive = false,
   loadingPhase,
   specialMode,
-  brandOverride
+  brandOverride,
+  musicVariations,
+  onMusicVariationsChange
 }: AIMessageProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -458,6 +462,8 @@ function AIMessageComponent({
                       isStreamingActive={isStreamingActive}
                       personaColor={personaColor}
                       displayPersona={displayPersona}
+                      savedVariations={musicVariations}
+                      onVariationsChange={(variations) => onMusicVariationsChange?.(messageId, variations)}
                     />
                   ) : (
                   <>
@@ -505,6 +511,8 @@ function AIMessageComponent({
                     isStreamingActive={isStreamingActive}
                     personaColor={personaColor}
                     displayPersona={displayPersona}
+                    savedVariations={musicVariations}
+                    onVariationsChange={(variations) => onMusicVariationsChange?.(messageId, variations)}
                   />
                 ) : (
                 <>

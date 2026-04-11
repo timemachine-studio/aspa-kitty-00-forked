@@ -11,6 +11,10 @@ interface MusicComposeCardProps {
   isStreamingActive: boolean;
   personaColor: string;
   displayPersona: keyof typeof AI_PERSONAS;
+  /** Called when Supabase-backed URLs are available so the parent can persist them */
+  onVariationsChange?: (variations: SavedVariation[]) => void;
+  /** Previously saved variations loaded from chat history metadata */
+  savedVariations?: SavedVariation[];
 }
 
 interface ParsedMusicData {
@@ -18,6 +22,13 @@ interface ParsedMusicData {
   style: string;
   lyrics: string;
   coverPrompt: string;
+}
+
+/** A variation that has been saved to Supabase storage */
+export interface SavedVariation {
+  seed: number;
+  audioUrl: string;
+  imageUrl: string;
 }
 
 const formatTime = (time: number) => {
@@ -32,9 +43,14 @@ interface MusicPlayerVariationProps {
   seed: number;
   personaColor: string;
   themeText: string;
+  /** If set, use these permanent URLs instead of generating on-the-fly */
+  savedAudioUrl?: string;
+  savedImageUrl?: string;
+  /** Called when the variation finishes uploading to Supabase */
+  onSaved?: (seed: number, audioUrl: string, imageUrl: string) => void;
 }
 
-function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: MusicPlayerVariationProps) {
+function MusicPlayerVariation({ parsedData, seed, personaColor, themeText, savedAudioUrl, savedImageUrl, onSaved }: MusicPlayerVariationProps) {
   const { user } = useAuth();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -51,13 +67,35 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Track the generation-API URLs separately so we can fetch blobs from them for upload
+  const generationAudioUrl = useRef<string | null>(null);
+  const generationImageUrl = useRef<string | null>(null);
+
   useEffect(() => {
+    // If we have saved Supabase URLs, use those directly (loaded from history)
+    if (savedAudioUrl && savedImageUrl) {
+      setAudioUrl(savedAudioUrl);
+      setImageUrl(savedImageUrl);
+      setAudioLoading(true);
+      setImageLoading(true);
+      setIsSaved(true); // already saved
+      setCurrentTime(0);
+      setIsPlaying(false);
+      generationAudioUrl.current = null;
+      generationImageUrl.current = null;
+      return;
+    }
+
+    // Otherwise, generate on-the-fly via Pollinations proxy
     const promptAudio = `Style: ${parsedData.style}. Lyrics: ${parsedData.lyrics}`;
     const encodedAudioPrompt = encodeURIComponent(promptAudio);
     const audio = `/api/music?prompt=${encodedAudioPrompt}&seed=${seed}`;
 
     const encodedImagePrompt = encodeURIComponent(parsedData.coverPrompt);
     const image = `/api/musicCover?prompt=${encodedImagePrompt}&width=1024&height=1024&seed=${seed}`;
+
+    generationAudioUrl.current = audio;
+    generationImageUrl.current = image;
 
     setAudioUrl(audio);
     setImageUrl(image);
@@ -66,7 +104,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
     setIsSaved(false);
     setCurrentTime(0);
     setIsPlaying(false);
-  }, [parsedData, seed]);
+  }, [parsedData, seed, savedAudioUrl, savedImageUrl]);
 
   useEffect(() => {
     const audioEl = audioRef.current;
@@ -157,15 +195,19 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
     }
   };
 
+  // Upload to Supabase storage once both audio and image are loaded (only for fresh generations)
   useEffect(() => {
-    const saveToMemory = async () => {
+    const saveToSupabase = async () => {
+      // Don't save if: no user, already saved, still loading, no URLs, or using saved URLs already
       if (!user || isSaved || isSaving || audioLoading || imageLoading || !audioUrl || !imageUrl || !parsedData) return;
+      // Only upload from generation URLs, not from already-saved Supabase URLs
+      if (!generationAudioUrl.current || !generationImageUrl.current) return;
 
       setIsSaving(true);
       try {
         const [audioRes, imageRes] = await Promise.all([
-          fetch(audioUrl),
-          fetch(imageUrl)
+          fetch(generationAudioUrl.current),
+          fetch(generationImageUrl.current)
         ]);
 
         const audioBlob = await audioRes.blob();
@@ -183,16 +225,25 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
 
         if (result) {
           setIsSaved(true);
+          // Switch to Supabase URLs so future plays use permanent storage
+          setAudioUrl(result.audio_url);
+          setImageUrl(result.image_url);
+          generationAudioUrl.current = null;
+          generationImageUrl.current = null;
+          // Notify parent so it can persist the URLs in message metadata
+          if (onSaved) {
+            onSaved(seed, result.audio_url, result.image_url);
+          }
         }
       } catch (error) {
-        console.error('Failed to save music to memory:', error);
+        console.error('Failed to save music to Supabase:', error);
       } finally {
         setIsSaving(false);
       }
     };
 
-    saveToMemory();
-  }, [audioLoading, imageLoading, user, isSaved, isSaving, audioUrl, imageUrl, parsedData]);
+    saveToSupabase();
+  }, [audioLoading, imageLoading, user, isSaved, isSaving, audioUrl, imageUrl, parsedData, seed, onSaved]);
 
   return (
     <div className={`p-4 md:p-6 rounded-3xl bg-black/5 backdrop-blur-md border border-white/10 shadow-xl flex flex-col md:flex-row gap-6 items-center`}>
@@ -300,7 +351,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
   );
 }
 
-export function MusicComposeCard({ content, isStreamingActive, personaColor, displayPersona }: MusicComposeCardProps) {
+export function MusicComposeCard({ content, isStreamingActive, personaColor, displayPersona, onVariationsChange, savedVariations }: MusicComposeCardProps) {
   const { theme } = useTheme();
 
   const [parsedData, setParsedData] = useState<ParsedMusicData | null>(null);
@@ -308,6 +359,9 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
 
   const [seeds, setSeeds] = useState<number[]>([]);
   const initialSeedSet = useRef(false);
+
+  // Map of seed → saved Supabase URLs (loaded from history or set after upload)
+  const [savedUrlMap, setSavedUrlMap] = useState<Map<number, { audioUrl: string; imageUrl: string }>>(new Map());
 
   // Deterministic hash from content so the same seed is used on reload
   // This ensures the same audio/cover is generated from chat history
@@ -320,6 +374,20 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
     }
     return Math.abs(hash) % 1000000;
   };
+
+  // Restore saved variations from history on mount
+  useEffect(() => {
+    if (savedVariations && savedVariations.length > 0 && seeds.length === 0 && !initialSeedSet.current) {
+      initialSeedSet.current = true;
+      const restoredSeeds = savedVariations.map(v => v.seed);
+      const restoredMap = new Map<number, { audioUrl: string; imageUrl: string }>();
+      for (const v of savedVariations) {
+        restoredMap.set(v.seed, { audioUrl: v.audioUrl, imageUrl: v.imageUrl });
+      }
+      setSeeds(restoredSeeds);
+      setSavedUrlMap(restoredMap);
+    }
+  }, [savedVariations]);
 
   // Parse JSON — only depends on content, NOT seeds.length
   // This prevents re-creating parsedData (new object ref) when seeds change,
@@ -349,6 +417,7 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
 
       if (data.songName && data.style && data.lyrics && data.coverPrompt) {
         setParsedData(data as ParsedMusicData);
+        // Only set initial seed if we didn't already restore from savedVariations
         if (!initialSeedSet.current) {
           initialSeedSet.current = true;
           // Use deterministic seed based on content hash so reload gives the same result
@@ -363,6 +432,32 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
   const handleRegenerate = () => {
     setSeeds(prev => [...prev, Math.floor(Math.random() * 1000000)]);
   };
+
+  // When a variation finishes uploading to Supabase, store its URLs
+  const handleVariationSaved = useCallback((seed: number, audioUrl: string, imageUrl: string) => {
+    setSavedUrlMap(prev => {
+      const next = new Map(prev);
+      next.set(seed, { audioUrl, imageUrl });
+
+      // Notify parent with all current variations so it can persist to message metadata
+      if (onVariationsChange) {
+        const allVariations: SavedVariation[] = [];
+        for (const s of seeds) {
+          const urls = s === seed ? { audioUrl, imageUrl } : next.get(s);
+          if (urls) {
+            allVariations.push({ seed: s, audioUrl: urls.audioUrl, imageUrl: urls.imageUrl });
+          }
+        }
+        // Also include this seed if it wasn't in seeds yet (shouldn't happen but safety)
+        if (!seeds.includes(seed)) {
+          allVariations.push({ seed, audioUrl, imageUrl });
+        }
+        onVariationsChange(allVariations);
+      }
+
+      return next;
+    });
+  }, [seeds, onVariationsChange]);
 
   if (!parsedData) {
     if (isStreamingActive) {
@@ -385,21 +480,27 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
 
       {/* Main Player Cards */}
       <div className="space-y-4">
-        {seeds.map((seed) => (
-          <motion.div
-            key={seed}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <MusicPlayerVariation
-              parsedData={parsedData}
-              seed={seed}
-              personaColor={personaColor}
-              themeText={theme.text}
-            />
-          </motion.div>
-        ))}
+        {seeds.map((seed) => {
+          const saved = savedUrlMap.get(seed);
+          return (
+            <motion.div
+              key={seed}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <MusicPlayerVariation
+                parsedData={parsedData}
+                seed={seed}
+                personaColor={personaColor}
+                themeText={theme.text}
+                savedAudioUrl={saved?.audioUrl}
+                savedImageUrl={saved?.imageUrl}
+                onSaved={handleVariationSaved}
+              />
+            </motion.div>
+          );
+        })}
       </div>
 
       <div className="flex justify-center mt-2">

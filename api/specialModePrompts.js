@@ -1914,7 +1914,7 @@ Example output:
 
     girlie: {
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      temperature: 0.8,
+      temperature: 0.95,
       maxTokens: 2000,
       tools: [],
       systemPrompt: `## Core Identity
@@ -1957,7 +1957,7 @@ Example output:
     },
 
     pro: {
-      model: 'openai',
+      model: 'qwen-3-235b-a22b-instruct-2507',
       temperature: 0.8,
       maxTokens: 5000,
       tools: [],

@@ -188,6 +188,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
     enableCollaborativeMode,
     joinCollaborativeChat,
     updateMessageReactions,
+    updateMusicVariations,
     // Remote music
     pendingRemoteMusic,
     playPendingMusic,
@@ -804,6 +805,7 @@ function MainChatPage({ groupChatId, brandOverride, backgroundClass: customBackg
                   onReply={isCollaborative ? handleReply : undefined}
                   onReact={isCollaborative ? handleReact : undefined}
                   brandOverride={brandOverride}
+                  onMusicVariationsChange={updateMusicVariations}
                 />
               ) : (
                 <StageMode

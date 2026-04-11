@@ -41,6 +41,7 @@ function messageToDbRow(message: Message, sessionId: string, userId: string) {
       hasAnimated: message.hasAnimated,
       imageDimensions: message.imageDimensions,
       specialMode: message.specialMode || null,
+      musicVariations: message.musicVariations || null,
     },
   };
 }
@@ -57,6 +58,7 @@ function dbRowToMessage(row: any): Message {
     thinking: row.reasoning,
     imageDimensions: row.metadata?.imageDimensions,
     specialMode: row.metadata?.specialMode || undefined,
+    musicVariations: row.metadata?.musicVariations || undefined,
   };
 }
 

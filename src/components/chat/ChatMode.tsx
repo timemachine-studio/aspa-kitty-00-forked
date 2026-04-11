@@ -8,6 +8,7 @@ import { AI_PERSONAS } from '../../config/constants';
 import { useTheme } from '../../context/ThemeContext';
 import { FlipWords } from '../ui/FlipWords';
 import { BrandOverride } from '../brand/BrandLogo';
+import type { SavedVariation } from './MusicComposeCard';
 
 interface ReplyTo {
   id: number;
@@ -28,6 +29,7 @@ interface ChatModeProps {
   onReply?: (message: ReplyTo) => void;
   onReact?: (messageId: number, emoji: string) => void;
   brandOverride?: BrandOverride;
+  onMusicVariationsChange?: (messageId: number, variations: SavedVariation[]) => void;
 }
 
 export function ChatMode({
@@ -41,7 +43,8 @@ export function ChatMode({
   currentUserId,
   onReply,
   onReact,
-  brandOverride
+  brandOverride,
+  onMusicVariationsChange
 }: ChatModeProps) {
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -207,6 +210,7 @@ export function ChatMode({
                     onReply={onReply}
                     onReact={onReact}
                     brandOverride={brandOverride}
+                    onMusicVariationsChange={onMusicVariationsChange}
                   />
                 </div>
               );

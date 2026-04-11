@@ -3,6 +3,12 @@ export interface ImageDimensions {
   height: number;
 }
 
+export interface MusicVariation {
+  seed: number;
+  audioUrl: string;
+  imageUrl: string;
+}
+
 export interface Message {
   id: number;
   content: string;
@@ -31,6 +37,8 @@ export interface Message {
   reactions?: Record<string, string[]>;
   // Special mode that triggered this message (e.g. 'web-coding', 'music-compose')
   specialMode?: string;
+  // Saved music variations with permanent Supabase URLs (for music-compose history)
+  musicVariations?: MusicVariation[];
 }
 
 export interface ChatState {
