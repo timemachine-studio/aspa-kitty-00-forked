@@ -15,6 +15,7 @@ import { AnimatedShinyText } from '../ui/AnimatedShinyText';
 import { AudioPlayerBubble } from './AudioPlayerBubble';
 import { CodeBlock } from './CodeBlock';
 import { BrandOverride } from '../brand/BrandLogo';
+import { MusicComposeCard } from './MusicComposeCard';
 
 interface AIMessageProps extends MessageProps {
   isChatMode: boolean;
@@ -451,6 +452,14 @@ function AIMessageComponent({
               </div>
               <div className={`${theme.text} text-base leading-relaxed max-w-[85%]`}>
                 {cleanContent ? (
+                  specialMode === 'music-compose' ? (
+                    <MusicComposeCard
+                      content={cleanContent}
+                      isStreamingActive={isStreamingActive}
+                      personaColor={personaColor}
+                      displayPersona={displayPersona}
+                    />
+                  ) : (
                   <>
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
@@ -471,6 +480,7 @@ function AIMessageComponent({
                       </motion.div>
                     )}
                   </>
+                  )
                 ) : isStreamingActive ? (
                   <div className="flex items-center gap-2 text-sm opacity-60">
                     <motion.div
@@ -489,6 +499,14 @@ function AIMessageComponent({
                 : 'text-xl sm:text-2xl md:text-3xl'
               } w-full max-w-4xl mx-auto text-center`}>
               {cleanContent ? (
+                specialMode === 'music-compose' ? (
+                  <MusicComposeCard
+                    content={cleanContent}
+                    isStreamingActive={isStreamingActive}
+                    personaColor={personaColor}
+                    displayPersona={displayPersona}
+                  />
+                ) : (
                 <>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
@@ -509,6 +527,7 @@ function AIMessageComponent({
                     </motion.div>
                   )}
                 </>
+                )
               ) : isStreamingActive ? (
                 <div className="flex items-center justify-center gap-3 text-lg opacity-60">
                   <motion.div
