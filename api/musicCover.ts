@@ -23,15 +23,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing or invalid prompt parameter' });
     }
 
-    const url = new URL(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`);
-    
+    const url = new URL(`https://gen.pollinations.ai/api/generate/image/${encodeURIComponent(prompt)}`);
+
     // Add common parameters for cover
     url.searchParams.set('model', 'zimage');
     url.searchParams.set('nologo', 'true');
     url.searchParams.set('width', typeof width === 'string' ? width : '1024');
     url.searchParams.set('height', typeof height === 'string' ? height : '1024');
     url.searchParams.set('key', POLLINATIONS_API_KEY);
-    
+
     if (seed && typeof seed === 'string') {
       url.searchParams.set('seed', seed);
     }
