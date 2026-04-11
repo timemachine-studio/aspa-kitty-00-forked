@@ -36,28 +36,28 @@ interface MusicPlayerVariationProps {
 
 function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: MusicPlayerVariationProps) {
   const { user } = useAuth();
-  
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  
+
   const [audioLoading, setAudioLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
-  
+
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
-  
+
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const promptAudio = `Style: ${parsedData.style}. Lyrics: ${parsedData.lyrics}`;
     const encodedAudioPrompt = encodeURIComponent(promptAudio);
-    const audio = `https://gen.pollinations.ai/audio/${encodedAudioPrompt}?model=acestep&duration=60&seed=${seed}`;
-    
+    const audio = `/api/music?prompt=${encodedAudioPrompt}&seed=${seed}`;
+
     const encodedImagePrompt = encodeURIComponent(parsedData.coverPrompt);
-    const image = `https://image.pollinations.ai/prompt/${encodedImagePrompt}?width=1024&height=1024&model=zimage&nologo=true&seed=${seed}`;
+    const image = `/api/musicCover?prompt=${encodedImagePrompt}&width=1024&height=1024&seed=${seed}`;
 
     setAudioUrl(audio);
     setImageUrl(image);
@@ -137,17 +137,17 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
   useEffect(() => {
     const saveToMemory = async () => {
       if (!user || isSaved || isSaving || audioLoading || imageLoading || !audioUrl || !imageUrl || !parsedData) return;
-      
+
       setIsSaving(true);
       try {
         const [audioRes, imageRes] = await Promise.all([
           fetch(audioUrl),
           fetch(imageUrl)
         ]);
-        
+
         const audioBlob = await audioRes.blob();
         const imageBlob = await imageRes.blob();
-        
+
         const result = await uploadGeneratedMusic(
           user.id,
           parsedData.songName,
@@ -157,7 +157,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
           audioBlob,
           imageBlob
         );
-        
+
         if (result) {
           setIsSaved(true);
         }
@@ -176,9 +176,9 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
       {/* Cover Art */}
       <div className="relative w-48 h-48 rounded-2xl overflow-hidden shadow-2xl group flex-shrink-0">
         {imageUrl ? (
-          <img 
-            src={imageUrl} 
-            alt="Song Cover" 
+          <img
+            src={imageUrl}
+            alt="Song Cover"
             className={`w-full h-full object-cover transition-transform duration-700 ${isPlaying ? 'scale-105' : 'scale-100'}`}
             onLoad={() => setImageLoading(false)}
           />
@@ -204,7 +204,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
 
       {/* Audio Controls */}
       <div className="flex-1 w-full flex flex-col justify-center space-y-4">
-        
+
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
             <span className={`text-lg font-bold ${themeText}`}>{parsedData.songName}</span>
@@ -218,10 +218,10 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
               )}
             </span>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={handleDownload}
               disabled={audioLoading || !audioUrl}
               className={`p-2 rounded-full bg-black/5 hover:bg-black/10 transition-colors border border-white/5 disabled:opacity-50`}
@@ -254,7 +254,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
 
         {/* Main Play Button */}
         <div className="flex justify-center mt-2">
-          <button 
+          <button
             onClick={togglePlay}
             disabled={audioLoading && !!audioUrl}
             className={`w-14 h-14 rounded-full bg-gradient-to-tr ${personaColor.includes('pink') ? 'from-pink-600 to-pink-400' : personaColor.includes('cyan') ? 'from-cyan-600 to-cyan-400' : 'from-purple-600 to-purple-400'} shadow-lg shadow-${personaColor.split('-')[1]}-500/30 flex items-center justify-center text-white hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100`}
@@ -268,7 +268,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
             )}
           </button>
         </div>
-        
+
       </div>
       {audioUrl && (
         <audio ref={audioRef} src={audioUrl} crossOrigin="anonymous" />
@@ -279,10 +279,10 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
 
 export function MusicComposeCard({ content, isStreamingActive, personaColor, displayPersona }: MusicComposeCardProps) {
   const { theme } = useTheme();
-  
+
   const [parsedData, setParsedData] = useState<ParsedMusicData | null>(null);
   const [showLyrics, setShowLyrics] = useState(false);
-  
+
   const [seeds, setSeeds] = useState<number[]>([]);
 
   // Parse JSON
@@ -346,7 +346,7 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
       {/* Main Player Cards */}
       <div className="space-y-4">
         {seeds.map((seed) => (
-          <motion.div 
+          <motion.div
             key={seed}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -363,7 +363,7 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
       </div>
 
       <div className="flex justify-center mt-2">
-        <button 
+        <button
           onClick={handleRegenerate}
           className={`flex items-center gap-2 px-4 py-2 rounded-full bg-black/5 hover:bg-black/10 transition-colors border border-white/10 ${theme.text} opacity-80 hover:opacity-100 text-sm font-medium`}
         >
@@ -373,7 +373,7 @@ export function MusicComposeCard({ content, isStreamingActive, personaColor, dis
 
       {/* Lyrics Toggle */}
       <div className="text-center mt-2">
-        <span 
+        <span
           onClick={() => setShowLyrics(!showLyrics)}
           className={`cursor-pointer font-bold ${personaColor} hover:opacity-80 transition-opacity text-sm`}
         >
