@@ -70,33 +70,56 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
 
   useEffect(() => {
     const audioEl = audioRef.current;
-    if (audioEl) {
-      const handleEnded = () => setIsPlaying(false);
-      const handleCanPlayThrough = () => {
-        setAudioLoading(false);
+    if (!audioEl) return;
+
+    const handleEnded = () => setIsPlaying(false);
+    const handleCanPlayThrough = () => {
+      setAudioLoading(false);
+      setDuration(audioEl.duration);
+    };
+    const handleLoadedData = () => {
+      // Fallback: if canplaythrough hasn't fired yet, mark as ready
+      setAudioLoading(false);
+      if (audioEl.duration && !isNaN(audioEl.duration)) {
         setDuration(audioEl.duration);
-      };
-      const handlePlaying = () => setIsPlaying(true);
-      const handlePause = () => setIsPlaying(false);
-      const handleTimeUpdate = () => setCurrentTime(audioEl.currentTime);
-      const handleLoadedMetadata = () => setDuration(audioEl.duration);
+      }
+    };
+    const handlePlaying = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleTimeUpdate = () => setCurrentTime(audioEl.currentTime);
+    const handleLoadedMetadata = () => setDuration(audioEl.duration);
+    const handleError = (e: Event) => {
+      console.error('Audio element error:', (e.target as HTMLAudioElement)?.error);
+      setAudioLoading(false);
+    };
 
-      audioEl.addEventListener('ended', handleEnded);
-      audioEl.addEventListener('canplaythrough', handleCanPlayThrough);
-      audioEl.addEventListener('playing', handlePlaying);
-      audioEl.addEventListener('pause', handlePause);
-      audioEl.addEventListener('timeupdate', handleTimeUpdate);
-      audioEl.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audioEl.addEventListener('ended', handleEnded);
+    audioEl.addEventListener('canplaythrough', handleCanPlayThrough);
+    audioEl.addEventListener('loadeddata', handleLoadedData);
+    audioEl.addEventListener('playing', handlePlaying);
+    audioEl.addEventListener('pause', handlePause);
+    audioEl.addEventListener('timeupdate', handleTimeUpdate);
+    audioEl.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audioEl.addEventListener('error', handleError);
 
-      return () => {
-        audioEl.removeEventListener('ended', handleEnded);
-        audioEl.removeEventListener('canplaythrough', handleCanPlayThrough);
-        audioEl.removeEventListener('playing', handlePlaying);
-        audioEl.removeEventListener('pause', handlePause);
-        audioEl.removeEventListener('timeupdate', handleTimeUpdate);
-        audioEl.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      };
+    // If the audio is already ready (cached/fast response), handle it immediately
+    if (audioEl.readyState >= 2) {
+      setAudioLoading(false);
+      if (audioEl.duration && !isNaN(audioEl.duration)) {
+        setDuration(audioEl.duration);
+      }
     }
+
+    return () => {
+      audioEl.removeEventListener('ended', handleEnded);
+      audioEl.removeEventListener('canplaythrough', handleCanPlayThrough);
+      audioEl.removeEventListener('loadeddata', handleLoadedData);
+      audioEl.removeEventListener('playing', handlePlaying);
+      audioEl.removeEventListener('pause', handlePause);
+      audioEl.removeEventListener('timeupdate', handleTimeUpdate);
+      audioEl.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audioEl.removeEventListener('error', handleError);
+    };
   }, [audioUrl]);
 
   const togglePlay = () => {
@@ -271,7 +294,7 @@ function MusicPlayerVariation({ parsedData, seed, personaColor, themeText }: Mus
 
       </div>
       {audioUrl && (
-        <audio ref={audioRef} src={audioUrl} crossOrigin="anonymous" />
+        <audio ref={audioRef} src={audioUrl} preload="auto" />
       )}
     </div>
   );
