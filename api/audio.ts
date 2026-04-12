@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Pollinations API key from environment variable

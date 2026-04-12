@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || '';

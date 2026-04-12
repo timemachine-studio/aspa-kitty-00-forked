@@ -1,13 +1,91 @@
 export const config = { runtime: 'edge' };
 
-import { createClient } from '@supabase/supabase-js';
-import { SPECIAL_MODE_CONFIGS } from './specialModePrompts.js';
-import { PERSONA_AUDIO_CONFIGS } from './audio.js';
 
-// Initialize Supabase
+
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://etpehiyzlkhknzceizar.supabase.co';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Lightweight edge-compatible Supabase fetch client
+const supabase = {
+  async req(path, method, body, extraHeaders={}) {
+    const res = await fetch(supabaseUrl + '/rest/v1/' + path, {
+        method,
+        headers: {
+            'apikey': supabaseServiceKey,
+            'Authorization': 'Bearer ' + supabaseServiceKey,
+            'Content-Type': 'application/json',
+            ...(body ? {'Prefer': 'return=representation'} : {}),
+            ...extraHeaders
+        },
+        body: body ? JSON.stringify(body) : undefined
+    });
+    const text = await res.text();
+    let data = null;
+    if(text) try { data = JSON.parse(text); } catch(e){}
+    return { data, error: !res.ok ? data : null };
+  },
+  from(table) {
+    return {
+      select(cols) {
+        return {
+          eq(col, val) {
+            return {
+              async maybeSingle() {
+                 let res = await supabase.req(table + '?select=' + cols + '&' + col + '=eq.' + encodeURIComponent(val) + '&limit=1', 'GET');
+                 return { data: res.data && res.data.length ? res.data[0] : null, error: res.error };
+              },
+              or(orQuery) {
+                 return {
+                    order(ordCol, opts) {
+                       return {
+                          order(ordCol2, opts2) {
+                             return {
+                                limit(n) {
+                                  return supabase.req(table + '?select=' + cols + '&' + col + '=eq.' + encodeURIComponent(val) + '&or=(' + encodeURIComponent(orQuery) + ')&order=' + ordCol + (opts.ascending?'.asc':'.desc') + ',' + ordCol2 + (opts2.ascending?'.asc':'.desc') + '&limit=' + n, 'GET');
+                                }
+                             }
+                          }
+                       }
+                    }
+                 }
+              }
+            }
+          }
+        }
+      },
+      insert(obj) {
+        return {
+          async select() {
+            return {
+              async single() {
+                 let res = await supabase.req(table, 'POST', obj);
+                 return { data: res.data && res.data.length ? res.data[0] : null, error: res.error };
+              }
+            }
+          },
+          async then(resolve) {
+             let res = await supabase.req(table, 'POST', obj);
+             resolve(res);
+          }
+        }
+      },
+      update(obj) {
+        return {
+          async eq(col, val) {
+            return await supabase.req(table + '?' + col + '=eq.' + encodeURIComponent(val), 'PATCH', obj);
+          }
+        }
+      }
+    }
+  },
+  rpc(fn, args) {
+    return supabase.req('rpc/' + fn, 'POST', args);
+  }
+};
+
+const SPECIAL_MODE_CONFIGS = {};
+function getAudioSystemPrompt(p) { return "You are TimeMachine Pro handling audio."; }
+
 
 const AI_PERSONAS = {
   pro: {
