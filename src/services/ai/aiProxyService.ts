@@ -54,8 +54,9 @@ export async function generateAIResponseStreaming(
   pdfExtractedText?: string
 ): Promise<void> {
   try {
+    const endpoint = currentPersona === 'pro' ? '/api/ai-proxy-pro' : '/api/ai-proxy';
     // Call the Vercel API route with streaming enabled
-    const response = await fetch('/api/ai-proxy', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -111,7 +112,11 @@ export async function generateAIResponseStreaming(
 
         let chunk = decoder.decode(value, { stream: true });
 
-
+        // Ignore background heartbeats to prevent UI glitches
+        if (chunk.includes(': heartbeat\n\n')) {
+          chunk = chunk.replace(/: heartbeat\n\n/g, '');
+          if (!chunk) continue;
+        }
 
         // Check for image analysis status markers
         if (chunk.includes('[IMAGE_ANALYZING]')) {
@@ -201,8 +206,9 @@ export async function generateAIResponse(
   pdfExtractedText?: string
 ): Promise<AIResponse> {
   try {
+    const endpoint = currentPersona === 'pro' ? '/api/ai-proxy-pro' : '/api/ai-proxy';
     // Call the Vercel API route without streaming
-    const response = await fetch('/api/ai-proxy', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
